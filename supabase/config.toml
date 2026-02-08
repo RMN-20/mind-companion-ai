@@ -1,0 +1,10 @@
+project_id = "elqkfqmlpfrekhefwuqb"
+
+[functions.ai-companion]
+verify_jwt = false
+
+[functions.analyze-sentiment]
+verify_jwt = false
+
+[functions.predict-stress]
+verify_jwt = false
