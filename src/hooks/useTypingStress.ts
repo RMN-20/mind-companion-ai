@@ -52,25 +52,31 @@ export function useTypingStress() {
 
     return { speed, errorRate, pausePattern: avgPause, stressScore };
   }, []);
+const lastKeyWasChar = useRef(false);
+const handleKeyPress = useCallback((e: KeyboardEvent) => {
+  const now = Date.now();
+  totalPresses.current += 1;
 
-  const handleKeyPress = useCallback((e: KeyboardEvent) => {
-    const now = Date.now();
-    totalPresses.current += 1;
+  if (e.key.length === 1 && /^[a-zA-Z]$/.test(e.key)) {
+    lastKeyWasChar.current = true;
+  }
 
-    if (e.key === "Backspace" || e.key === "Delete") {
-      deletePresses.current += 1;
-    }
+  if ((e.key === "Backspace" || e.key === "Delete") && lastKeyWasChar.current) {
+    deletePresses.current += 1;
+    lastKeyWasChar.current = false;
+  }
 
-    if (lastKeyTime.current > 0) {
-      const gap = now - lastKeyTime.current;
-      pauses.current.push(gap);
-      if (pauses.current.length > 50) pauses.current.shift();
-    }
+  if (lastKeyTime.current > 0) {
+    const gap = now - lastKeyTime.current;
+    pauses.current.push(gap);
+    if (pauses.current.length > 50) pauses.current.shift();
+  }
 
-    lastKeyTime.current = now;
-    keyTimestamps.current.push(now);
-    if (keyTimestamps.current.length > 200) keyTimestamps.current.shift();
-  }, []);
+  lastKeyTime.current = now;
+  keyTimestamps.current.push(now);
+  if (keyTimestamps.current.length > 200) keyTimestamps.current.shift();
+}, []);
+
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyPress);

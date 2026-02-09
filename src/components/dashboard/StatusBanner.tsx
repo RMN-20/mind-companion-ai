@@ -1,22 +1,34 @@
-import { motion } from "framer-motion";
-import { Activity } from "lucide-react";
+import { Brain } from "lucide-react";
 
-export function StatusBanner() {
+interface StatusBannerProps {
+  status: "clear" | "intervening";
+  message: string | null;
+}
+
+export function StatusBanner({ status, message }: StatusBannerProps) {
+  if (status === "clear") {
+    return (
+      <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 flex items-center gap-3">
+        <Brain className="text-emerald-600" />
+        <div>
+          <p className="font-medium text-emerald-700">All Clear</p>
+          <p className="text-sm text-emerald-600">
+            No intervention needed right now. The AI is monitoring your signals.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl bg-calm-light border border-calm/20 p-4 flex items-center gap-4"
-    >
-      <div className="relative">
-        <div className="h-3 w-3 rounded-full bg-calm" />
-        <div className="absolute inset-0 h-3 w-3 rounded-full bg-calm pulse-calm" />
+    <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 flex items-center gap-3">
+      <Brain className="text-amber-600" />
+      <div>
+        <p className="font-medium text-amber-700">AI Intervention Active</p>
+        <p className="text-sm text-amber-600">
+          {message ?? "The AI is providing support based on your stress signals."}
+        </p>
       </div>
-      <div className="flex items-center gap-2">
-        <Activity className="h-4 w-4 text-calm" />
-        <span className="font-display font-semibold text-calm">Monitoring Active</span>
-      </div>
-      <span className="text-sm text-muted-foreground">Sensing typing patterns, voice signals & sleep data</span>
-    </motion.div>
+    </div>
   );
 }
