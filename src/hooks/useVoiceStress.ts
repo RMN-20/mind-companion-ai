@@ -6,36 +6,44 @@ export function useVoiceStress() {
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
 
-  const mediaRecorder = useRef<MediaRecorder | null>(null);
-  const audioChunks = useRef<Blob[]>([]);
-  const startTime = useRef<number>(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const startTimeRef = useRef<number>(0);
   const timerRef = useRef<number | null>(null);
 
   const startRecording = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    mediaRecorder.current = new MediaRecorder(stream);
-    audioChunks.current = [];
-    startTime.current = Date.now();
-    setDuration(0);
-    setIsRecording(true);
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      startTimeRef.current = Date.now();
 
-    mediaRecorder.current.ondataavailable = (e) => {
-      audioChunks.current.push(e.data);
-    };
+      setDuration(0);
+      setIsRecording(true);
 
-    mediaRecorder.current.start();
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
 
-    // Timer for UI feedback
-    timerRef.current = window.setInterval(() => {
-      setDuration(Math.floor((Date.now() - startTime.current) / 1000));
-    }, 1000);
+      recorder.start();
+
+      timerRef.current = window.setInterval(() => {
+        setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      }, 1000);
+    } catch (err) {
+      console.error("Microphone access denied", err);
+    }
   };
 
   const stopRecording = () => {
-    if (!mediaRecorder.current) return;
+    const recorder = mediaRecorderRef.current;
+    if (!recorder) return;
 
-    mediaRecorder.current.stop();
+    recorder.stop();
     setIsRecording(false);
 
     if (timerRef.current) {
@@ -43,24 +51,29 @@ export function useVoiceStress() {
       timerRef.current = null;
     }
 
-    mediaRecorder.current.onstop = () => {
+    recorder.onstop = () => {
       const durationSec = Math.max(
-        (Date.now() - startTime.current) / 1000,
+        (Date.now() - startTimeRef.current) / 1000,
         1
       );
 
-      // Speaking rate proxy
+      // 🔊 Energy proxy (based on total audio size)
+      const totalSize = audioChunksRef.current.reduce(
+        (sum, blob) => sum + blob.size,
+        0
+      );
+      const energy = Math.min(totalSize / 400000, 1);
+
+      // 🗣 Speaking rate proxy (chunks per second)
       const speakingRate = Math.min(
-        (audioChunks.current.length / durationSec) * 60,
-        200
+        (audioChunksRef.current.length / durationSec) * 60,
+        180
       );
 
-      // Energy proxy (audio size)
-      const totalSize = audioChunks.current.reduce((a, b) => a + b.size, 0);
-      const energy = Math.min(totalSize / 500000, 1);
-
       const stress = computeVoiceStress(energy, speakingRate);
-      setVoiceStress(stress);
+
+      // 🔥 THIS is the missing piece
+      setVoiceStress(Number(stress.toFixed(2)));
     };
   };
 
