@@ -206,22 +206,6 @@ export default function Dashboard() {
           >
             {addStressReading.isPending ? "Saving…" : "Submit Stress Snapshot"}
           </Button>
-
-          {/* RL Feedback */}
-          {agentResult.status === "intervening" && agentResult.action && (
-            <div className="flex gap-2">
-              <button onClick={() => applyFeedback(agentResult.action, "helpful")}>
-                👍 Helpful
-              </button>
-              <button onClick={() => applyFeedback(agentResult.action, "neutral")}>
-                😐 Neutral
-              </button>
-              <button onClick={() => applyFeedback(agentResult.action, "unhelpful")}>
-                👎 Not helpful
-              </button>
-            </div>
-          )}
-
           <RecentActions interventions={interventions ?? []} />
         </div>
 

@@ -1,48 +1,50 @@
-export type ActionType = "breathing" | "grounding" | "break" | "motivation";
+// rlPolicy.ts
 
-interface PolicyStats {
+export type ActionType =
+  | "breathing"
+  | "grounding"
+  | "break"
+  | "motivation"
+  | "focus"
+  | "reflection";
+
+export interface PolicyStats {
   uses: number;
-  reward: number; // cumulative
+  reward: number;
 }
 
+// ✅ INITIAL POLICY — now COMPLETE
 const policy: Record<ActionType, PolicyStats> = {
   breathing: { uses: 0, reward: 0 },
   grounding: { uses: 0, reward: 0 },
   break: { uses: 0, reward: 0 },
   motivation: { uses: 0, reward: 0 },
+  focus: { uses: 0, reward: 0 },
+  reflection: { uses: 0, reward: 0 },
 };
 
+/**
+ * Select an action based on stress level
+ */
 export function selectAction(stress: number): ActionType {
-  if (stress < 0.4) return "motivation";
-
-  // ε-greedy selection
-  const epsilon = 0.2;
-  if (Math.random() < epsilon) {
-    return randomAction();
-  }
-
-  return bestAction();
+  if (stress > 0.75) return "grounding";
+  if (stress > 0.6) return "breathing";
+  if (stress > 0.45) return "break";
+  if (stress > 0.3) return "focus";
+  return "motivation";
 }
 
-function bestAction(): ActionType {
-  return Object.entries(policy).reduce((best, [key, stats]) => {
-    const score = stats.uses === 0 ? 0 : stats.reward / stats.uses;
-    const bestScore =
-      policy[best].uses === 0 ? 0 : policy[best].reward / policy[best].uses;
-    return score > bestScore ? (key as ActionType) : best;
-  }, "breathing");
-}
-
-function randomAction(): ActionType {
-  const actions: ActionType[] = ["breathing", "grounding", "break", "motivation"];
-  return actions[Math.floor(Math.random() * actions.length)];
-}
-
+/**
+ * Update policy using simple reward-based learning
+ */
 export function updatePolicy(action: ActionType, reward: number) {
   policy[action].uses += 1;
   policy[action].reward += reward;
 }
 
-export function getPolicyStats() {
+/**
+ * (Optional) Inspect policy for Insights page / debugging
+ */
+export function getPolicy() {
   return policy;
 }

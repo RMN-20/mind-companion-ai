@@ -1,10 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 
 interface TypingMetrics {
-  speed: number; // chars per minute
-  errorRate: number; // 0-1
-  pausePattern: number; // avg pause duration in ms
-  stressScore: number; // 0-1
+  speed: number;            // chars per minute
+  errorRate: number;        // 0–1
+  pausePattern: number;     // avg pause (ms)
+  stressScore: number;      // 0–1
 }
 
 export function useTypingStress() {
@@ -15,87 +15,91 @@ export function useTypingStress() {
     stressScore: 0,
   });
 
-  const keyTimestamps = useRef<number[]>([]);
-  const deletePresses = useRef(0);
-  const totalPresses = useRef(0);
+  const keyTimes = useRef<number[]>([]);
   const pauses = useRef<number[]>([]);
-  const lastKeyTime = useRef<number>(0);
-  const updateTimer = useRef<NodeJS.Timeout | null>(null);
+  const backspaces = useRef<number[]>([]);
+  const totalKeys = useRef(0);
+  const lastKeyTime = useRef<number | null>(null);
 
+  /* -------------------- KEY LISTENER -------------------- */
+  const handleKeyPress = useCallback((e: KeyboardEvent) => {
+    const now = Date.now();
+    totalKeys.current += 1;
+
+    keyTimes.current.push(now);
+    if (keyTimes.current.length > 300) keyTimes.current.shift();
+
+    if (e.key === "Backspace" || e.key === "Delete") {
+      backspaces.current.push(now);
+      if (backspaces.current.length > 50) backspaces.current.shift();
+    }
+
+    if (lastKeyTime.current) {
+      pauses.current.push(now - lastKeyTime.current);
+      if (pauses.current.length > 50) pauses.current.shift();
+    }
+
+    lastKeyTime.current = now;
+  }, []);
+
+  /* -------------------- STRESS CALCULATION -------------------- */
   const calculateStress = useCallback(() => {
     const now = Date.now();
-    const recentKeys = keyTimestamps.current.filter(t => now - t < 30000);
-    const speed = recentKeys.length * 2; // chars in 30s → chars/min
 
-    const errorRate = totalPresses.current > 0
-      ? Math.min(deletePresses.current / totalPresses.current, 1)
-      : 0;
+    // Speed (last 30s)
+    const recentKeys = keyTimes.current.filter(t => now - t < 30000);
+    const speed = recentKeys.length * 2;
 
-    const recentPauses = pauses.current.filter((_, i) => i >= pauses.current.length - 10);
-    const avgPause = recentPauses.length > 0
-      ? recentPauses.reduce((a, b) => a + b, 0) / recentPauses.length
-      : 0;
+    // Error rate
+    const errorRate =
+      totalKeys.current > 0
+        ? Math.min(backspaces.current.length / totalKeys.current, 1)
+        : 0;
 
-    // Normalize: high speed + high errors + long pauses = stress
-    const speedFactor = speed > 200 ? Math.min((speed - 200) / 200, 1) * 0.3 : 0;
-    const errorFactor = errorRate * 0.4;
-    const pauseFactor = avgPause > 2000 ? Math.min((avgPause - 2000) / 5000, 1) * 0.3 : 0;
+    // Pause pattern
+    const avgPause =
+      pauses.current.length > 0
+        ? pauses.current.reduce((a, b) => a + b, 0) / pauses.current.length
+        : 0;
 
-    const stressScore = Math.min(speedFactor + errorFactor + pauseFactor, 1);
+    // Backspace burst (stress signal)
+    const recentBackspaces = backspaces.current.filter(t => now - t < 10000);
+    const backspaceBurst = Math.min(recentBackspaces.length / 10, 1);
+
+    /* ---------- NORMALIZATION ---------- */
+    const speedFactor =
+      speed > 180 ? Math.min((speed - 180) / 220, 1) : 0;
+
+    const pauseFactor =
+      avgPause > 1500 ? Math.min((avgPause - 1500) / 4000, 1) : 0;
+
+    /* ---------- FINAL STRESS SCORE ---------- */
+    const stressScore = Math.min(
+      speedFactor * 0.25 +
+      errorRate * 0.25 +
+      pauseFactor * 0.25 +
+      backspaceBurst * 0.25,
+      1
+    );
 
     setMetrics({
       speed: Math.round(speed),
-      errorRate: Math.round(errorRate * 100) / 100,
+      errorRate: Number(errorRate.toFixed(2)),
       pausePattern: Math.round(avgPause),
-      stressScore: Math.round(stressScore * 100) / 100,
+      stressScore: Number(stressScore.toFixed(2)),
     });
-
-    return { speed, errorRate, pausePattern: avgPause, stressScore };
   }, []);
-const lastKeyWasChar = useRef(false);
-const handleKeyPress = useCallback((e: KeyboardEvent) => {
-  const now = Date.now();
-  totalPresses.current += 1;
 
-  if (e.key.length === 1 && /^[a-zA-Z]$/.test(e.key)) {
-    lastKeyWasChar.current = true;
-  }
-
-  if ((e.key === "Backspace" || e.key === "Delete") && lastKeyWasChar.current) {
-    deletePresses.current += 1;
-    lastKeyWasChar.current = false;
-  }
-
-  if (lastKeyTime.current > 0) {
-    const gap = now - lastKeyTime.current;
-    pauses.current.push(gap);
-    if (pauses.current.length > 50) pauses.current.shift();
-  }
-
-  lastKeyTime.current = now;
-  keyTimestamps.current.push(now);
-  if (keyTimestamps.current.length > 200) keyTimestamps.current.shift();
-}, []);
-
-
+  /* -------------------- EFFECT -------------------- */
   useEffect(() => {
     window.addEventListener("keydown", handleKeyPress);
-    updateTimer.current = setInterval(calculateStress, 3000);
+    const timer = setInterval(calculateStress, 3000);
 
     return () => {
       window.removeEventListener("keydown", handleKeyPress);
-      if (updateTimer.current) clearInterval(updateTimer.current);
+      clearInterval(timer);
     };
   }, [handleKeyPress, calculateStress]);
 
-  const reset = useCallback(() => {
-    keyTimestamps.current = [];
-    deletePresses.current = 0;
-    totalPresses.current = 0;
-    pauses.current = [];
-    lastKeyTime.current = 0;
-    setMetrics({ speed: 0, errorRate: 0, pausePattern: 0, stressScore: 0 });
-  }, []);
-
-  return { metrics, calculateStress, reset };
+  return { metrics };
 }
