@@ -8,12 +8,13 @@ import { RecentActions } from "@/components/dashboard/RecentActions";
 import { SleepEntryForm } from "@/components/dashboard/SleepEntryForm";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 import { useTypingStress } from "@/hooks/useTypingStress";
 import {
   useInterventions,
   useSleepEntries,
-  useAddStressReading, // ✅ FIXED: IMPORT ADDED
+  useAddStressReading,
 } from "@/hooks/useStressData";
 
 import { computeSleepStress } from "@/utils/sleepStress";
@@ -23,6 +24,7 @@ import type { SleepQuality, BedtimeConsistency } from "@/types/sleep";
 import { useVoiceStress } from "@/hooks/useVoiceStress";
 import { runAgent, applyFeedback } from "@/agent/agent";
 import { useAgent } from "@/agent/AgentContext";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const { updateAgent } = useAgent();
@@ -30,7 +32,7 @@ export default function Dashboard() {
   const { metrics } = useTypingStress();
   const { data: interventions } = useInterventions();
   const { data: sleepEntries } = useSleepEntries();
-  const addStressReading = useAddStressReading(); // ✅ now defined
+  const addStressReading = useAddStressReading();
 
   /* -------------------- CHAT -------------------- */
   const [reflection, setReflection] = useState("");
@@ -76,34 +78,32 @@ export default function Dashboard() {
     );
   }, [agentResult, overallStress, updateAgent]);
 
-  /* -------------------- SAVE STRESS EVERY 20s -------------------- */
-useEffect(() => {
-  if (overallStress === 0) return;
-
-  const interval = setInterval(() => {
-    addStressReading.mutate({
-      typing_stress: metrics.stressScore,
-      voice_stress: voiceStress,
-      sleep_stress: sleepStress,
-      overall_stress: overallStress,
-      typing_speed: metrics.speed,
-      typing_error_rate: metrics.errorRate,
-      typing_pause_pattern: metrics.pausePattern,
-    });
-  }, 20000);
-
-  return () => clearInterval(interval);
-}, [
-  metrics,
-  voiceStress,
-  sleepStress,
-  overallStress,
-  addStressReading,
-]);
-
+  /* -------------------- SUBMIT STRESS -------------------- */
+  const handleSubmitStress = () => {
+    addStressReading.mutate(
+      {
+        typing_stress: metrics.stressScore,
+        voice_stress: voiceStress,
+        sleep_stress: sleepStress,
+        overall_stress: overallStress,
+        typing_speed: metrics.speed,
+        typing_error_rate: metrics.errorRate,
+        typing_pause_pattern: metrics.pausePattern,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Stress snapshot saved successfully");
+        },
+        onError: () => {
+          toast.error("Failed to save stress data");
+        },
+      }
+    );
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-4 mb-2">
         <SidebarTrigger />
         <div>
@@ -116,11 +116,13 @@ useEffect(() => {
         </div>
       </div>
 
+      {/* Agent Status */}
       <StatusBanner
         status={agentResult.status}
         message={agentResult.message}
       />
 
+      {/* Signal Cards */}
       <div className="grid md:grid-cols-3 gap-4">
         <SignalCard
           title="Typing Stress"
@@ -161,8 +163,12 @@ useEffect(() => {
               Voice Check-in
             </h2>
             <div className="flex gap-2">
-              <button onClick={startRecording} disabled={isRecording}>Start</button>
-              <button onClick={stopRecording} disabled={!isRecording}>Stop</button>
+              <button onClick={startRecording} disabled={isRecording}>
+                Start
+              </button>
+              <button onClick={stopRecording} disabled={!isRecording}>
+                Stop
+              </button>
               {isRecording && <span>Recording… {duration}s</span>}
             </div>
             {!isRecording && duration > 0 && (
@@ -182,6 +188,7 @@ useEffect(() => {
         />
       </div>
 
+      {/* Bottom */}
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
           <StressGauge
@@ -191,6 +198,16 @@ useEffect(() => {
             sleepStress={sleepStress}
           />
 
+          {/* ✅ SUBMIT BUTTON */}
+          <Button
+            onClick={handleSubmitStress}
+            disabled={addStressReading.isPending}
+            className="w-full"
+          >
+            {addStressReading.isPending ? "Saving…" : "Submit Stress Snapshot"}
+          </Button>
+
+          {/* RL Feedback */}
           {agentResult.status === "intervening" && agentResult.action && (
             <div className="flex gap-2">
               <button onClick={() => applyFeedback(agentResult.action, "helpful")}>
