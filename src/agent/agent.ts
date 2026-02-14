@@ -7,8 +7,6 @@ export type AgentAction =
   | "grounding"
   | "break"
   | "motivation"
-  | "focus"
-  | "reflection"
   | null;
 
 export interface AgentResult {
@@ -19,10 +17,10 @@ export interface AgentResult {
 
 /**
  * Agent decision logic
- * Graduated + emotion-aware responses
+ * OPTION A: Relaxed thresholds + graduated responses
  */
 export function runAgent(overallStress: number): AgentResult {
-  // 🟢 Very low stress
+  // 🟢 Very low stress → do nothing
   if (overallStress < 0.2) {
     return {
       status: "clear",
@@ -31,11 +29,9 @@ export function runAgent(overallStress: number): AgentResult {
     };
   }
 
-  // 🟡 Mild stress → motivation / focus
-  if (overallStress < 0.4) {
-    const action: AgentAction =
-      Math.random() > 0.5 ? "motivation" : "focus";
-
+  // 🟡 Mild stress → gentle motivation
+  if (overallStress >= 0.2 && overallStress < 0.4) {
+    const action: AgentAction = "motivation";
     return {
       status: "intervening",
       action,
@@ -43,11 +39,9 @@ export function runAgent(overallStress: number): AgentResult {
     };
   }
 
-  // 🟠 Moderate stress → breathing / break
-  if (overallStress < 0.65) {
-    const action =
-      selectAction(overallStress) ?? "breathing";
-
+  // 🟠 Moderate stress → breathing or break
+  if (overallStress >= 0.4 && overallStress < 0.65) {
+    const action: AgentAction = selectAction(overallStress) ?? "breathing";
     return {
       status: "intervening",
       action,
@@ -55,10 +49,8 @@ export function runAgent(overallStress: number): AgentResult {
     };
   }
 
-  // 🔴 High stress → grounding or reflection
-  const action: AgentAction =
-    Math.random() > 0.6 ? "grounding" : "reflection";
-
+  // 🔴 High stress → grounding (strong intervention)
+  const action: AgentAction = "grounding";
   return {
     status: "intervening",
     action,

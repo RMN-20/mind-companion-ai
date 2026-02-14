@@ -1,50 +1,48 @@
-// rlPolicy.ts
+export type ActionType = "breathing" | "grounding" | "break" | "motivation";
 
-export type ActionType =
-  | "breathing"
-  | "grounding"
-  | "break"
-  | "motivation"
-  | "focus"
-  | "reflection";
-
-export interface PolicyStats {
+interface PolicyStats {
   uses: number;
-  reward: number;
+  reward: number; // cumulative
 }
 
-// ✅ INITIAL POLICY — now COMPLETE
 const policy: Record<ActionType, PolicyStats> = {
   breathing: { uses: 0, reward: 0 },
   grounding: { uses: 0, reward: 0 },
   break: { uses: 0, reward: 0 },
   motivation: { uses: 0, reward: 0 },
-  focus: { uses: 0, reward: 0 },
-  reflection: { uses: 0, reward: 0 },
 };
 
-/**
- * Select an action based on stress level
- */
 export function selectAction(stress: number): ActionType {
-  if (stress > 0.75) return "grounding";
-  if (stress > 0.6) return "breathing";
-  if (stress > 0.45) return "break";
-  if (stress > 0.3) return "focus";
-  return "motivation";
+  if (stress < 0.4) return "motivation";
+
+  // ε-greedy selection
+  const epsilon = 0.2;
+  if (Math.random() < epsilon) {
+    return randomAction();
+  }
+
+  return bestAction();
 }
 
-/**
- * Update policy using simple reward-based learning
- */
+function bestAction(): ActionType {
+  return Object.entries(policy).reduce((best, [key, stats]) => {
+    const score = stats.uses === 0 ? 0 : stats.reward / stats.uses;
+    const bestScore =
+      policy[best].uses === 0 ? 0 : policy[best].reward / policy[best].uses;
+    return score > bestScore ? (key as ActionType) : best;
+  }, "breathing");
+}
+
+function randomAction(): ActionType {
+  const actions: ActionType[] = ["breathing", "grounding", "break", "motivation"];
+  return actions[Math.floor(Math.random() * actions.length)];
+}
+
 export function updatePolicy(action: ActionType, reward: number) {
   policy[action].uses += 1;
   policy[action].reward += reward;
 }
 
-/**
- * (Optional) Inspect policy for Insights page / debugging
- */
-export function getPolicy() {
+export function getPolicyStats() {
   return policy;
 }
