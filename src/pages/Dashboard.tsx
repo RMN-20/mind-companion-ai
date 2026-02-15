@@ -206,7 +206,7 @@ export default function Dashboard() {
           >
             {addStressReading.isPending ? "Saving…" : "Submit Stress Snapshot"}
           </Button>
-45          <RecentActions interventions={interventions ?? []} />
+          <RecentActions interventions={interventions ?? []} />
         </div>
 
         <SleepEntryForm />
