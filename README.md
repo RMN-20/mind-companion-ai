@@ -385,8 +385,6 @@ This project is an academic prototype and is not intended to provide medical, ps
 ## Authors
 
 Developed as part of an academic AI systems project focused on adaptive mental health monitoring.
-```
 
----
 
 
