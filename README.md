@@ -1,4 +1,4 @@
-# MindGuard – Agentic AI Mental Health Companion
+# Autonomous multi-modal AI system for real-time stress detection and adaptive mental wellness support
 
 MindGuard is an intelligent, adaptive AI system that monitors multi-modal stress signals and delivers personalized interventions using Emotion AI, Reinforcement Learning, and a memory-enabled agent framework.
 
